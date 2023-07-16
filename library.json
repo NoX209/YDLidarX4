@@ -1,0 +1,14 @@
+{
+  "name": "YDLidarX4",
+  "version": "0.1.0",
+  "description": "This lib reads a YDLidarX4 via serial interface an provide the corrected angle and distance values.",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/NoX209/YDLidarX4.git"
+  },
+  "keywords": "YDLidarX4, lidar, sensor, robot",
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": "*"
+}
