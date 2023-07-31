@@ -1,6 +1,6 @@
 {
   "name": "YDLidarX4",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "This lib reads a YDLidarX4 via serial interface an provide the corrected angle and distance values.",
   "repository":
   {
