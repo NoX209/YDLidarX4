@@ -14,8 +14,8 @@ using std::string;
 namespace sensorYDLidarX4 {
 
 // define packet handler lambda interfaces
-typedef std::function<void(float minAngleInDegree, float maxAngleInDegree, float anglesInDegree[], float rangesInMillimeter[], size_t lenght)> OnLidarPacketHandler;
-typedef std::function<void(float angleInDegree, float rangeInMillimeter)> OnLidarIndexPacketHandler;
+typedef std::function<void(float minAngleInDegree, float maxAngleInDegree, float correctedAnglesInDegree[], float rangesInMillimeter[], size_t lenght)> OnLidarPacketHandler;
+typedef std::function<void(float angleInDegree, float correctedAngleInDegree, float rangeInMillimeter)> OnLidarIndexPacketHandler;
 
 class YDLidarX4StateMachine{
 private:

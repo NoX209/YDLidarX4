@@ -334,26 +334,26 @@ void YDLidarX4StateMachine::handleValidPacket(){
   float stopAngleInDegree = angleInDegree(lastAngle);
   bool isIndexPaket = type==indexPacket;
 
-  float ranges[sampleQuantity];
-  float anglesInDegree[sampleQuantity];
-  calculateRangesAndAnglesFromPaket(paket, sampleQuantity, startAngleInDegree, stopAngleInDegree, ranges, anglesInDegree);
-  printRangesAndAnglesFromPaket(isIndexPaket, sampleQuantity, startAngleInDegree, stopAngleInDegree, anglesInDegree, ranges);
-  notifyHandlers(isIndexPaket, startAngleInDegree, stopAngleInDegree, anglesInDegree, ranges, sampleQuantity);
+  float rangesInMillimeter[sampleQuantity];
+  float correctedAnglesInDegree[sampleQuantity];
+  calculateRangesAndAnglesFromPaket(paket, sampleQuantity, startAngleInDegree, stopAngleInDegree, rangesInMillimeter, correctedAnglesInDegree);
+  printRangesAndAnglesFromPaket(isIndexPaket, sampleQuantity, startAngleInDegree, stopAngleInDegree, correctedAnglesInDegree, rangesInMillimeter);
+  notifyHandlers(isIndexPaket, startAngleInDegree, stopAngleInDegree, correctedAnglesInDegree, rangesInMillimeter, sampleQuantity);
 }
 
 // tested: 0x6fe5 | fsa 223.78=223.781 | cfsa -6.7622=-6.76219 | 217.0178 degree = 217.019
 // tested: 0x79bd | lsa 243.47=243.469 | lfsa -7.8374=-7.83743 | 235.6326 degree = 235.631
-void YDLidarX4StateMachine::calculateRangesAndAnglesFromPaket(Paket &paket, uint8_t sampleQuantity, float startAngleInDegree, float stopAngleInDegree, float* ranges, float* anglesInDegree){
+void YDLidarX4StateMachine::calculateRangesAndAnglesFromPaket(Paket &paket, uint8_t sampleQuantity, float startAngleInDegree, float stopAngleInDegree, float* rangesInMillimeter, float* correctedAnglesInDegree){
   for(uint16_t sampleNum=0; sampleNum<(uint16_t)sampleQuantity; sampleNum++){
     uint16_t distanceBytes_i = paket.samples[sampleNum];
 
-    float distanceValue_i = distanceInMillimeter(distanceBytes_i);
-    ranges[sampleNum] = distanceValue_i;
-    anglesInDegree[sampleNum] = calculateAngleInDegree(distanceValue_i, startAngleInDegree, stopAngleInDegree, sampleNum, sampleQuantity);
+    float distanceInMillimeterValue_i = distanceInMillimeter(distanceBytes_i);
+    rangesInMillimeter[sampleNum] = distanceInMillimeterValue_i;
+    correctedAnglesInDegree[sampleNum] = calculateAngleInDegree(distanceInMillimeterValue_i, startAngleInDegree, stopAngleInDegree, sampleNum, sampleQuantity);
   }
 }
 
-void YDLidarX4StateMachine::printRangesAndAnglesFromPaket(bool isIndexPaket, size_t lenght, float minAngleInDegree, float maxAngleInDegree, float anglesInDegree[], float ranges[]){
+void YDLidarX4StateMachine::printRangesAndAnglesFromPaket(bool isIndexPaket, size_t lenght, float minAngleInDegree, float maxAngleInDegree, float anglesInDegree[], float rangesInMillimeter[]){
   if(trace == &DummyPrint){
     return;
   }
@@ -365,40 +365,46 @@ void YDLidarX4StateMachine::printRangesAndAnglesFromPaket(bool isIndexPaket, siz
   trace->printf("   | paket type: %s\n", isIndexPaket?"INDEX":"SCAN");
   trace->printf("   | angles %f° - %f°\n", minAngleInDegree, maxAngleInDegree);
   for(uint16_t sampleNum=0; sampleNum<(uint16_t)lenght; sampleNum++){
-    trace->printf("   | distance at %f°: %fmm\n", anglesInDegree[sampleNum], ranges[sampleNum]);
+    trace->printf("   | distance at %f°: %fmm\n", anglesInDegree[sampleNum], rangesInMillimeter[sampleNum]);
   }
   trace->printf("   \\--------------------\n");
   // trace->printf("PKG: angles %f° - %f° => %d messures\n", minAngleInDegree, maxAngleInDegree, lenght);
 }
 
 float YDLidarX4StateMachine::calculateAngleInDegree(float distanceValue_i, float startAngleInDegree, float stopAngleInDegree, uint16_t sampleNum, uint8_t sampleQuantity){
-  float angleInDegree_i = startAngleInDegree + sampleNum * (stopAngleInDegree - startAngleInDegree)/(sampleQuantity - 1);
+  float angleInDegree_i;
+  if(sampleQuantity==1){
+    // prevent DIV0-error
+    angleInDegree_i = startAngleInDegree;
+  }else{
+    angleInDegree_i = startAngleInDegree + sampleNum * (stopAngleInDegree - startAngleInDegree)/(sampleQuantity - 1);
+  }
   float angleInDegree_correced_i = angleInDegree_i + calculateCorrectingAngleInDegree(distanceValue_i);
   return angleInDegree_correced_i;
 }
 
-void YDLidarX4StateMachine::notifyHandlers(bool isIndexPaket, float minAngleInDegree, float maxAngleInDegree, float anglesInDegree[], float ranges[], size_t lenght){
+void YDLidarX4StateMachine::notifyHandlers(bool isIndexPaket, float minAngleInDegree, float maxAngleInDegree, float correctedAnglesInDegree[], float rangesInMillimeter[], size_t lenght){
   if(isIndexPaket){
-    notifyIndexPacketHandler(minAngleInDegree, maxAngleInDegree, anglesInDegree, ranges);
+    notifyIndexPacketHandler(minAngleInDegree, maxAngleInDegree, correctedAnglesInDegree, rangesInMillimeter);
   }else{
-    notifyPacketHandler(minAngleInDegree, maxAngleInDegree, anglesInDegree, ranges, lenght);
+    notifyPacketHandler(minAngleInDegree, maxAngleInDegree, correctedAnglesInDegree, rangesInMillimeter, lenght);
   }
 }
 
 
-void YDLidarX4StateMachine::notifyIndexPacketHandler(float minAngleInDegree, float maxAngleInDegree, float anglesInDegree[], float ranges[]){
+void YDLidarX4StateMachine::notifyIndexPacketHandler(float minAngleInDegree, float maxAngleInDegree, float correctedAnglesInDegree[], float rangesInMillimeter[]){
   if(indexPacketHandler == nullptr){
     if(packetHandler != nullptr){
-      packetHandler->operator()(minAngleInDegree, maxAngleInDegree, anglesInDegree, ranges, 1);
+      packetHandler->operator()(minAngleInDegree, maxAngleInDegree, correctedAnglesInDegree, rangesInMillimeter, 1);
     }
   }else{
-    indexPacketHandler->operator()(anglesInDegree[0], ranges[0]);
+    indexPacketHandler->operator()(minAngleInDegree, correctedAnglesInDegree[0], rangesInMillimeter[0]);
   }
 }
 
-void YDLidarX4StateMachine::notifyPacketHandler(float minAngleInDegree, float maxAngleInDegree, float anglesInDegree[], float ranges[], size_t lenght){
+void YDLidarX4StateMachine::notifyPacketHandler(float minAngleInDegree, float maxAngleInDegree, float anglesInDegree[], float rangesInMillimeter[], size_t lenght){
   if(packetHandler != nullptr){
-    packetHandler->operator()(minAngleInDegree, maxAngleInDegree, anglesInDegree, ranges, lenght);
+    packetHandler->operator()(minAngleInDegree, maxAngleInDegree, anglesInDegree, rangesInMillimeter, lenght);
   }
 }
 

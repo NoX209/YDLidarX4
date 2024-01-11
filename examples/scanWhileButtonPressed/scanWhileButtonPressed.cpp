@@ -62,7 +62,7 @@ void printLidarStatus(){
   lastPkgs = pkgs;
 }
 
-void checkButtonStateAndSetLidar(){
+void checkButtonStateAndToggleLidar(){
   bool buttonPressed = !digitalRead(BUTTON_PIN);
   if(buttonPressed){
     if(!lidar->isScanning()){
@@ -87,7 +87,7 @@ void loop(){
   if((now-last)>1000){
     last=now;
 
-    checkButtonStateAndSetLidar();
+    checkButtonStateAndToggleLidar();
 
     if(lidar->isScanning()){
       printLidarStatus();
